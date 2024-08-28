@@ -1,0 +1,17 @@
+requests==2.32.3
+Django==5.0.2
+dj-rest-auth==4.0.0
+django-allauth==0.52.0
+django-cors-headers==4.3.1
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.1
+django-filter==23.2
+django-redis==5.4.0
+django-celery-beat==2.6.0
+python-dotenv==1.0.1
+celery[redis]==5.4.0
+langchain==0.2.15
+lanchain_community==0.2.14
+langchain_core==0.2.36
+langchain_openai==0.1.23
+langchain_text_splitters==0.2.2
