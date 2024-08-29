@@ -34,6 +34,8 @@ def get_arxiv_papers(request):
     if max_results:
         scraper.set_max_results(int(max_results))
 
+    scraper.set_order('submittedDate', "descending")
+
     papers = scraper.get_papers()
 
     return Response(papers, status=status.HTTP_200_OK)
@@ -49,8 +51,12 @@ def get_producthunt_posts(request):
     scraper = ProductHuntScraper(api_key)
 
     date_str = request.data.get('date')
-    topic = request.data.get('topic')
+    topic = request.data.get('category')
     max_results = int(request.data.get('max_results', 50))
+    search_term = request.data.get('keyword')
+
+
+    scraper.set_order("VOTES")
 
     if date_str:
         try:
@@ -62,10 +68,10 @@ def get_producthunt_posts(request):
     if topic:
         scraper.filter_by_topic(topic)
 
-    products, error = scraper.get_products(max_results=max_results)
+    if search_term:
+        scraper.filter_by_search(search_term)
 
-    if error:
-        return Response({"error": error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    products = scraper.get_products(max_results=max_results)
 
     if not products:
         return Response({"message": "No products found for the given criteria."}, status=status.HTTP_200_OK)
