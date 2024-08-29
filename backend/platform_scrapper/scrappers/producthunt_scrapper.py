@@ -10,23 +10,42 @@ class ProductHuntScraper:
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {self.api_key}',
         }
-        self.date = None
+        self.posted_after = None
+        self.posted_before = None
         self.topic = None
+        self.featured = None
+        self.order = None
         self.search_term = None
 
-    def filter_by_date(self, date):
-        self.date = date
+    def filter_by_date_range(self, start_date, end_date):
+        self.posted_after = start_date
+        self.posted_before = end_date
 
     def filter_by_topic(self, topic):
         self.topic = topic
+
+    def filter_by_featured(self, featured):
+        self.featured = featured
+
+    def set_order(self, order):
+        self.order = order
 
     def filter_by_search_term(self, search_term):
         self.search_term = search_term
 
     def get_products(self, max_results=50):
         query = """
-        query($after: DateTime, $topic: String, $first: Int) {
-          posts(first: $first, postedAfter: $after, topic: $topic) {
+        query($after: String, $before: String, $featured: Boolean, $first: Int, $order: PostsOrder, $postedAfter: DateTime, $postedBefore: DateTime, $topic: String) {
+          posts(
+            after: $after,
+            before: $before,
+            featured: $featured,
+            first: $first,
+            order: $order,
+            postedAfter: $postedAfter,
+            postedBefore: $postedBefore,
+            topic: $topic
+          ) {
             edges {
               node {
                 id
@@ -67,9 +86,12 @@ class ProductHuntScraper:
         """
 
         variables = {
-            "after": self.date.isoformat() if self.date else None,
+            "first": max_results,
+            "postedAfter": self.posted_after.isoformat() if self.posted_after else None,
+            "postedBefore": self.posted_before.isoformat() if self.posted_before else None,
             "topic": self.topic,
-            "first": max_results
+            "featured": self.featured,
+            "order": self.order,
         }
 
         try:
@@ -95,6 +117,10 @@ class ProductHuntScraper:
             return [], f"Request error: {str(e)}"
         except Exception as e:
             return [], f"Unexpected error: {str(e)}"
+        
+    def filter_by_date(self, date):
+        self.posted_after = date
+        self.posted_before = date + timedelta(days=1)
 
     def filter_by_search(self, products):
         if not self.search_term:
