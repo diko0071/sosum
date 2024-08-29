@@ -11,14 +11,22 @@ class ProductHuntScraper:
             'Authorization': f'Bearer {self.api_key}',
         }
         self.date = datetime.now().date()
+        self.topic = None
+        self.search_term = None
 
     def filter_by_date(self, date):
         self.date = date
 
+    def filter_by_topic(self, topic):
+        self.topic = topic
+
+    def filter_by_search_term(self, search_term):
+        self.search_term = search_term
+
     def get_products(self, max_results=50):
         query = """
-        query($date: Date!) {
-          posts(first: $max_results, postedAfter: $date, postedBefore: $next_date) {
+        query($date: Date!, $topic: String, $search: String) {
+          posts(first: $max_results, postedAfter: $date, postedBefore: $next_date, topic: $topic, search: $search) {
             edges {
               node {
                 id
@@ -47,7 +55,9 @@ class ProductHuntScraper:
         variables = {
             "date": self.date.isoformat(),
             "next_date": (self.date + timedelta(days=1)).isoformat(),
-            "max_results": max_results
+            "max_results": max_results,
+            "topic": self.topic,
+            "search": self.search_term
         }
 
         response = requests.post(self.api_url, json={'query': query, 'variables': variables}, headers=self.headers)

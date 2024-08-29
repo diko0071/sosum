@@ -5,26 +5,28 @@ import xml.etree.ElementTree as ET
 class ArxivScraper:
     def __init__(self):
         self.base_url = 'http://export.arxiv.org/api/query?'
-        self.params = {
-            'search_query': '',
-            'start': 0,
-            'max_results': 10
-        }
+        self.search_query = []
+        self.max_results = 10
 
     def filter_by_category(self, category):
-        self.params['search_query'] += f'cat:{category}'
+        self.search_query.append(f'cat:{category}')
 
     def filter_by_date(self, date):
-        self.params['search_query'] += f' AND submittedDate:[{date} TO *]'
+        self.search_query.append(f'submittedDate:[{date} TO *]')
 
     def filter_by_keyword(self, keyword):
-        self.params['search_query'] += f' AND all:{keyword}'
+        self.search_query.append(f'all:{keyword}')
 
     def set_max_results(self, max_results):
-        self.params['max_results'] = max_results
+        self.max_results = max_results
 
     def get_papers(self):
-        query_string = urllib.parse.urlencode(self.params)
+        params = {
+            'search_query': ' AND '.join(self.search_query),
+            'start': 0,
+            'max_results': self.max_results
+        }
+        query_string = urllib.parse.urlencode(params)
         url = self.base_url + query_string
         
         with urllib.request.urlopen(url) as response:
