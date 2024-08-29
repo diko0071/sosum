@@ -7,7 +7,11 @@ import os
 from .scrappers.arxiv_scrapper import ArxivScraper
 from rest_framework.response import Response
 from .scrappers.producthunt_scrapper import ProductHuntScraper
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @api_view(['GET'])
@@ -34,18 +38,19 @@ def get_arxiv_papers(request):
 
     return Response(papers, status=status.HTTP_200_OK)
 
-
 @api_view(['GET'])
 @authentication_classes([])
 @permission_classes([])
 def get_producthunt_posts(request):
     api_key = os.getenv('PRODUCTHUNT_DEVELOPER_TOKEN')
+    if not api_key:
+        return Response({"error": "API key not found"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     scraper = ProductHuntScraper(api_key)
 
     date_str = request.data.get('date')
     topic = request.data.get('topic')
-    search_term = request.data.get('search')
-    max_results = request.data.get('max_results', 50)
+    max_results = int(request.data.get('max_results', 50))
 
     if date_str:
         try:
@@ -57,9 +62,12 @@ def get_producthunt_posts(request):
     if topic:
         scraper.filter_by_topic(topic)
 
-    if search_term:
-        scraper.filter_by_search_term(search_term)
+    products, error = scraper.get_products(max_results=max_results)
 
-    products = scraper.get_products(max_results=int(max_results))
+    if error:
+        return Response({"error": error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(products, status=status.HTTP_200_OK)
+    if not products:
+        return Response({"message": "No products found for the given criteria."}, status=status.HTTP_200_OK)
+
+    return Response({"products": products}, status=status.HTTP_200_OK)

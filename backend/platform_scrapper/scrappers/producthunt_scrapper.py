@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 
-class ProductHuntScraper: 
+class ProductHuntScraper:
     def __init__(self, api_key):
         self.api_key = api_key
         self.api_url = 'https://api.producthunt.com/v2/api/graphql'
@@ -10,7 +10,7 @@ class ProductHuntScraper:
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {self.api_key}',
         }
-        self.date = datetime.now().date()
+        self.date = None
         self.topic = None
         self.search_term = None
 
@@ -25,8 +25,8 @@ class ProductHuntScraper:
 
     def get_products(self, max_results=50):
         query = """
-        query($date: Date!, $topic: String, $search: String) {
-          posts(first: $max_results, postedAfter: $date, postedBefore: $next_date, topic: $topic, search: $search) {
+        query($after: DateTime, $topic: String, $first: Int) {
+          posts(first: $first, postedAfter: $after, topic: $topic) {
             edges {
               node {
                 id
@@ -36,15 +36,29 @@ class ProductHuntScraper:
                 url
                 votesCount
                 website
+                commentsCount
+                createdAt
+                featuredAt
+                slug
+                reviewsCount
+                reviewsRating
                 thumbnail {
                   url
                 }
-                topics {
+                topics(first: 5) {
                   edges {
                     node {
                       name
                     }
                   }
+                }
+                user {
+                  id
+                  name
+                }
+                makers {
+                  id
+                  name
                 }
               }
             }
@@ -53,20 +67,43 @@ class ProductHuntScraper:
         """
 
         variables = {
-            "date": self.date.isoformat(),
-            "next_date": (self.date + timedelta(days=1)).isoformat(),
-            "max_results": max_results,
+            "after": self.date.isoformat() if self.date else None,
             "topic": self.topic,
-            "search": self.search_term
+            "first": max_results
         }
 
-        response = requests.post(self.api_url, json={'query': query, 'variables': variables}, headers=self.headers)
-        
-        if response.status_code == 200:
+        try:
+            response = requests.post(self.api_url, json={'query': query, 'variables': variables}, headers=self.headers)
+            response.raise_for_status()
+            
             data = response.json()
-            posts = data['data']['posts']['edges']
-            return [post['node'] for post in posts]
-        else:
-            print(f"Error: {response.status_code}")
-            print(response.text)
-            return []
+
+            if 'data' in data and 'posts' in data['data']:
+                posts = data['data']['posts']['edges']
+                products = [post['node'] for post in posts]
+                
+                if self.search_term:
+                    products = self.filter_by_search(products)
+                
+                return products, None
+            else:
+                error_message = "Unexpected response structure"
+                if 'errors' in data:
+                    error_message += f": {data['errors']}"
+                return [], error_message
+        except requests.exceptions.RequestException as e:
+            return [], f"Request error: {str(e)}"
+        except Exception as e:
+            return [], f"Unexpected error: {str(e)}"
+
+    def filter_by_search(self, products):
+        if not self.search_term:
+            return products
+
+        search_term = self.search_term.lower()
+        return [
+            product for product in products
+            if search_term in product['name'].lower() or
+            search_term in product['tagline'].lower() or
+            search_term in product['description'].lower()
+        ]
