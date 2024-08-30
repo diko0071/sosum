@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from .scrappers.producthunt_scrapper import ProductHuntScraper
 from datetime import datetime
 from .scrappers.hackernews_scrapper import HackerNewsScraper
+from .models import ScrapperLog
+from .serializers import ScrapperLogSerializer
 
 from dotenv import load_dotenv
 
@@ -50,6 +52,20 @@ def get_arxiv_papers(request):
             "date": paper.get("published", "")[:10] 
         }
         formatted_papers.append(formatted_paper)
+
+    log_data = {
+        'scrap_date': datetime.now().date(),
+        'scrapper_name': 'ArxivScraper',
+        'platform': 'Arxiv',
+        'scrapper_category': category or '',
+        'keyword': keyword or '',
+        'max_results': max_results or 0,
+    }
+
+    serializer = ScrapperLogSerializer(data=log_data)
+    
+    if serializer.is_valid():
+        serializer.save()
 
     return Response(formatted_papers, status=status.HTTP_200_OK)
 
@@ -104,6 +120,20 @@ def get_producthunt_posts(request):
                     }
                     formatted_products.append(formatted_product)
 
+    log_data = {
+        'scrap_date': datetime.now().date(),
+        'scrapper_name': 'ProductHuntScraper',
+        'platform': 'Product Hunt',
+        'scrapper_category': topic or '',
+        'keyword': search_term or '',
+        'max_results': max_results,
+    }
+    
+    serializer = ScrapperLogSerializer(data=log_data)
+    
+    if serializer.is_valid():
+        serializer.save()
+
     return Response(formatted_products, status=status.HTTP_200_OK)
 
 
@@ -154,6 +184,21 @@ def get_hackernews_posts(request):
             "date": datetime.fromtimestamp(post.get("time", 0)).strftime('%Y-%m-%d')
         }
         formatted_posts.append(formatted_post)
+
+    log_data = {
+        'scrap_date': datetime.now().date(),
+        'scrapper_name': 'HackerNewsScraper',
+        'platform': 'Hacker News',
+        'scrapper_category': "",
+        'keyword': keyword or '',
+        'max_results': max_results,
+    }
+    
+    serializer = ScrapperLogSerializer(data=log_data)
+    
+    if serializer.is_valid():
+        serializer.save()
+
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
 

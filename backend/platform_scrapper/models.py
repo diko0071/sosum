@@ -2,7 +2,7 @@ from django.db import models
 
 
 class ScrapperLog(models.Model):
-    date = models.DateField()
+    scrap_date = models.DateField()
     scrapper_name = models.CharField(max_length=255)
     platform = models.CharField(max_length=255)
     scrapper_category = models.CharField(max_length=255)
