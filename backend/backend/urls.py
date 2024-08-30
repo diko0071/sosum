@@ -21,4 +21,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("platform_scrapper.urls")),
     path('api/auth/', include('useraccount.urls')),
+    path('api/posts/', include('posts.urls')),
 ]
