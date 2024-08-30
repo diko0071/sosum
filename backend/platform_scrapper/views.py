@@ -39,7 +39,19 @@ def get_arxiv_papers(request):
 
     papers = scraper.get_papers()
 
-    return Response(papers, status=status.HTTP_200_OK)
+    formatted_papers = []
+    for paper in papers:
+        formatted_paper = {
+            "title": paper.get("title", "").replace("\n", " ").strip(),
+            "description": paper.get("summary", "").replace("\n", " ").strip(),
+            "url": paper.get("link", ""),
+            "id": paper.get("link", "").split("/")[-1],
+            "category": paper.get("primary_category", ""),
+            "date": paper.get("published", "")[:10] 
+        }
+        formatted_papers.append(formatted_paper)
+
+    return Response(formatted_papers, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @authentication_classes([])
@@ -77,7 +89,22 @@ def get_producthunt_posts(request):
     if not products:
         return Response({"message": "No products found for the given criteria."}, status=status.HTTP_200_OK)
 
-    return Response({"products": products}, status=status.HTTP_200_OK)
+    formatted_products = []
+    for product_list in products:
+        if isinstance(product_list, list):
+            for product in product_list:
+                if isinstance(product, dict):
+                    formatted_product = {
+                        "title": product.get("name", ""), 
+                        "description": product.get("description", ""), 
+                        "url": product.get("url", ""), 
+                        "id": product.get("id", ""), 
+                        "category": ", ".join([topic["node"]["name"] for topic in product.get("topics", {}).get("edges", [])]),
+                        "date": product.get("createdAt", "")[:10]
+                    }
+                    formatted_products.append(formatted_product)
+
+    return Response(formatted_products, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -88,7 +115,7 @@ def get_hackernews_posts(request):
 
     date_str = request.data.get('date')
     max_results = request.data.get('max_results')
-    post_type = request.data.get('category', 'posts')
+    post_type = request.data.get('post_type', 'posts')
     keyword = request.data.get('keyword')
 
     if date_str:
@@ -100,7 +127,7 @@ def get_hackernews_posts(request):
     if max_results:
         max_results = int(max_results)
     else:
-        max_results = 10
+        max_results = 50
 
     if post_type == 'asks':
         posts = scraper.get_asks(max_results=max_results)
@@ -115,5 +142,18 @@ def get_hackernews_posts(request):
     if not posts:
         return Response({"message": "No posts found for the given criteria."}, status=status.HTTP_200_OK)
 
-    return Response({"posts": posts}, status=status.HTTP_200_OK)
+    formatted_posts = []
+    for post in posts:
+        post_id = post.get("id", "")
+        formatted_post = {
+            "title": post.get("title", ""),
+            "description": post.get("text", ""),
+            "url": f"https://news.ycombinator.com/item?id={post_id}",
+            "id": post_id,
+            "category": "",
+            "date": datetime.fromtimestamp(post.get("time", 0)).strftime('%Y-%m-%d')
+        }
+        formatted_posts.append(formatted_post)
+
+    return Response(formatted_posts, status=status.HTTP_200_OK)
 
