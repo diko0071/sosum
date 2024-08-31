@@ -11,8 +11,9 @@ from datetime import datetime
 from .scrappers.hackernews_scrapper import HackerNewsScraper
 from .models import ScrapperLog
 from .serializers import ScrapperLogSerializer
-from posts.serializers import PostSerializer
-
+from posts.serializers import PostContentSerializer
+from .scrappers.twitter_scrapper import TwitterScrapper
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -71,7 +72,7 @@ def get_arxiv_papers(request):
 
         for formatted_paper in formatted_papers:
             formatted_paper['scrapper_log_id'] = scrapper_log.id
-            post_serializer = PostSerializer(data=formatted_paper)
+            post_serializer = PostContentSerializer(data=formatted_paper)
             if post_serializer.is_valid():
                 post_serializer.save()
             else:
@@ -150,7 +151,7 @@ def get_producthunt_posts(request):
 
         for formatted_product in formatted_products:
             formatted_product['scrapper_log_id'] = scrapper_log.id
-            post_serializer = PostSerializer(data=formatted_product)
+            post_serializer = PostContentSerializer(data=formatted_product)
             if post_serializer.is_valid():
                 post_serializer.save()
             else:
@@ -227,7 +228,7 @@ def get_hackernews_posts(request):
 
         for formatted_post in formatted_posts:
             formatted_post['scrapper_log_id'] = scrapper_log.id
-            post_serializer = PostSerializer(data=formatted_post)
+            post_serializer = PostContentSerializer(data=formatted_post)
             if post_serializer.is_valid():
                 post_serializer.save()
             else:
@@ -237,3 +238,83 @@ def get_hackernews_posts(request):
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
 
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_twitter_posts(request):
+    scraper = TwitterScrapper()
+
+    username = request.data.get('username')
+    if not username:
+        return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    since_str = request.data.get('since')
+    until_str = request.data.get('until')
+    max_results = int(request.data.get('max_results', 50))
+
+    since = datetime.strptime(since_str, '%Y-%m-%d') if since_str else None
+    until = datetime.strptime(until_str, '%Y-%m-%d') if until_str else None
+
+    tweets_data = scraper.get_tweets(username, since=since, until=until, number=max_results)
+    
+    if isinstance(tweets_data, str):
+        try:
+            tweets_data = json.loads(tweets_data)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid data format from Twitter scraper"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    tweets = tweets_data.get('tweets', [])
+
+    if not tweets:
+        return Response({"message": "No tweets found for the given criteria."}, status=status.HTTP_200_OK)
+
+    formatted_tweets = []
+    
+    for tweet in tweets:
+        post_source_id = tweet['link'].split('/')[-1].split('#')[0]
+        
+        date_str = tweet['date']
+        date_obj = datetime.strptime(date_str, "%b %d, %Y · %I:%M %p UTC")
+        formatted_date = date_obj.strftime("%Y-%m-%d")
+
+        formatted_tweet = {
+            "post_source_url": tweet['link'],
+            "post_source_id": post_source_id,
+            "title": tweet['text'],
+            "post_source_date": formatted_date,
+            "platform": "Twitter"
+        }
+        formatted_tweets.append(formatted_tweet)
+
+    return Response(formatted_tweets, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_twitter_profile(request):
+    scraper = TwitterScrapper()
+
+    username = request.data.get('username')
+    if not username:
+        return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile_info = scraper.get_user_info(username)
+    
+    formatted_profile = {
+        "id": profile_info['id'],
+        "name": profile_info['name'],
+        "username": profile_info['username'],
+        "platform": "Twitter",
+        "profile_id": profile_info['id'],
+        "profile_url": f"https://twitter.com/{profile_info['username']}",
+        "avatar_url": profile_info['image'],
+        "following_list": [
+            {
+                "profile_url": f"{username}",
+                "platform": "Twitter"
+            } for username in profile_info['following_list']
+        ]
+    }
+    
+    return Response(formatted_profile, status=status.HTTP_200_OK)

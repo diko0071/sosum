@@ -5,4 +5,6 @@ urlpatterns = [
     path('arxiv/get_list/', get_arxiv_papers, name='arxiv_papers'),
     path('producthunt/get_list/', get_producthunt_posts, name='producthunt_posts'),
     path('hackernews/get_list/', get_hackernews_posts, name='hackernews_posts'),
+    path('twitter/get_list/', get_twitter_posts, name='twitter_posts'),
+    path('twitter/get_profile/', get_twitter_profile, name='twitter_profile'),
 ]

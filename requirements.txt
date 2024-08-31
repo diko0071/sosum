@@ -17,3 +17,4 @@ langchain_community==0.2.14
 langchain_core==0.2.36
 langchain_openai==0.1.23
 langchain_text_splitters==0.2.2
+ntscraper==0.3.16

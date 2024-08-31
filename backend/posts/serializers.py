@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from .models import Post
+from .models import PostContent, PostSocial
     
-class PostSerializer(serializers.ModelSerializer):
+class PostContentSerializer(serializers.ModelSerializer):
     scrapper_log_id = serializers.IntegerField(write_only=True)
     
     class Meta:
-        model = Post
+        model = PostContent
         fields = (
             'title', 'description', 'post_source_url', 'post_source_id', 'author', 'ai_summary', 'platform', 'tags', 'scrapper_log_id', 'post_source_date'
         )
