@@ -5,5 +5,5 @@ class ScrapperLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScrapperLog
         fields = (
-            'scrap_date', 'scrapper_name', 'platform', 'scrapper_category', 'keyword', 'max_results',
+            'scrap_date', 'scrapper_name', 'platform', 'scrapper_category', 'keyword', 'max_results', 'id'
         )

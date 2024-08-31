@@ -1,27 +1,21 @@
 from django.db import models
 from platform_scrapper.models import ScrapperLog
+from datetime import datetime
 
 class Post(models.Model):
     title = models.CharField(max_length=255)
-    description = models.TextField()
-    source_url = models.URLField(unique=True)
-    date = models.DateField()
+    description = models.TextField(null=True, blank=True)
+    post_source_url = models.URLField(unique=False, blank=True, null=True)
+    post_source_id = models.CharField(max_length=255, blank=True, null=True)
+    author = models.CharField(max_length=255, blank=True, null=True)
+    post_source_date = models.DateField(blank=True, null=True)
+    platform = models.CharField(max_length=255, blank=True, null=True)
+    tags = models.CharField(max_length=255, blank=True, null=True)
 
-    scrapper_log = models.ForeignKey(ScrapperLog, on_delete=models.CASCADE)
-    platform = models.CharField(max_length=255, blank=True)
-    tags = models.CharField(max_length=255, blank=True)
+    scrapper_log = models.ForeignKey(ScrapperLog, on_delete=models.CASCADE, blank=True, null=True)
+    
 
-    ai_summary = models.TextField(blank=True)
+    ai_summary = models.TextField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    def save(self, *args, **kwargs):
-        if not self.tags and self.scrapper_log:
-            self.tags = self.scrapper_log.scrapper_category
-
-        if not self.platform and self.scrapper_log:
-            self.platform = self.scrapper_log.platform
-
-        super().save(*args, **kwargs)
-

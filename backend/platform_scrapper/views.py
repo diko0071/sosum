@@ -11,6 +11,7 @@ from datetime import datetime
 from .scrappers.hackernews_scrapper import HackerNewsScraper
 from .models import ScrapperLog
 from .serializers import ScrapperLogSerializer
+from posts.serializers import PostSerializer
 
 from dotenv import load_dotenv
 
@@ -46,10 +47,11 @@ def get_arxiv_papers(request):
         formatted_paper = {
             "title": paper.get("title", "").replace("\n", " ").strip(),
             "description": paper.get("summary", "").replace("\n", " ").strip(),
-            "url": paper.get("link", ""),
-            "id": paper.get("link", "").split("/")[-1],
-            "category": paper.get("primary_category", ""),
-            "date": paper.get("published", "")[:10] 
+            "post_source_url": paper.get("link", ""),
+            "post_source_id": paper.get("link", "").split("/")[-1],
+            "post_source_date": paper.get("published", "")[:10],
+            "platform": "Arxiv",
+            "tags": f'{keyword}, {category}' if keyword and category else keyword or category
         }
         formatted_papers.append(formatted_paper)
 
@@ -65,9 +67,21 @@ def get_arxiv_papers(request):
     serializer = ScrapperLogSerializer(data=log_data)
     
     if serializer.is_valid():
-        serializer.save()
+        scrapper_log = serializer.save()
 
-    return Response(formatted_papers, status=status.HTTP_200_OK)
+        for formatted_paper in formatted_papers:
+            formatted_paper['scrapper_log_id'] = scrapper_log.id
+            post_serializer = PostSerializer(data=formatted_paper)
+            if post_serializer.is_valid():
+                post_serializer.save()
+            else:
+                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(formatted_paper, status=status.HTTP_200_OK)
+
+
 
 @api_view(['GET'])
 @authentication_classes([])
@@ -83,7 +97,6 @@ def get_producthunt_posts(request):
     topic = request.data.get('category')
     max_results = int(request.data.get('max_results', 50))
     search_term = request.data.get('keyword')
-
 
     scraper.set_order("VOTES")
 
@@ -113,10 +126,11 @@ def get_producthunt_posts(request):
                     formatted_product = {
                         "title": product.get("name", ""), 
                         "description": product.get("description", ""), 
-                        "url": product.get("url", ""), 
-                        "id": product.get("id", ""), 
-                        "category": ", ".join([topic["node"]["name"] for topic in product.get("topics", {}).get("edges", [])]),
-                        "date": product.get("createdAt", "")[:10]
+                        "post_source_url": product.get("url", ""), 
+                        "post_source_id": product.get("id", ""), 
+                        "post_source_date": product.get("createdAt", "")[:10],
+                        "platform": "Product Hunt",
+                        "tags": ", ".join([topic["node"]["name"] for topic in product.get("topics", {}).get("edges", [])])
                     }
                     formatted_products.append(formatted_product)
 
@@ -132,9 +146,20 @@ def get_producthunt_posts(request):
     serializer = ScrapperLogSerializer(data=log_data)
     
     if serializer.is_valid():
-        serializer.save()
+        scrapper_log = serializer.save()
+
+        for formatted_product in formatted_products:
+            formatted_product['scrapper_log_id'] = scrapper_log.id
+            post_serializer = PostSerializer(data=formatted_product)
+            if post_serializer.is_valid():
+                post_serializer.save()
+            else:
+                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_products, status=status.HTTP_200_OK)
+
 
 
 @api_view(['GET'])
@@ -178,10 +203,11 @@ def get_hackernews_posts(request):
         formatted_post = {
             "title": post.get("title", ""),
             "description": post.get("text", ""),
-            "url": f"https://news.ycombinator.com/item?id={post_id}",
-            "id": post_id,
-            "category": "",
-            "date": datetime.fromtimestamp(post.get("time", 0)).strftime('%Y-%m-%d')
+            "post_source_url": f"https://news.ycombinator.com/item?id={post_id}",
+            "post_source_id": post_id,
+            "post_source_date": datetime.fromtimestamp(post.get("time", 0)).strftime('%Y-%m-%d'),
+            "platform": "Hacker News",
+            "tags": ""
         }
         formatted_posts.append(formatted_post)
 
@@ -197,8 +223,17 @@ def get_hackernews_posts(request):
     serializer = ScrapperLogSerializer(data=log_data)
     
     if serializer.is_valid():
-        serializer.save()
+        scrapper_log = serializer.save()
 
+        for formatted_post in formatted_posts:
+            formatted_post['scrapper_log_id'] = scrapper_log.id
+            post_serializer = PostSerializer(data=formatted_post)
+            if post_serializer.is_valid():
+                post_serializer.save()
+            else:
+                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
 
