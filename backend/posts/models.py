@@ -27,6 +27,7 @@ class PostSocial(models.Model):
     post_source_id = models.CharField(max_length=255, blank=True, null=True)
     post_source_date = models.DateField(blank=True, null=True)
     platform = models.CharField(max_length=255, blank=True, null=True)
+    total_activity = models.PositiveIntegerField(blank=True, null=True)
 
     author = models.JSONField(blank=True, null=True)
 

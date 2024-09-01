@@ -15,6 +15,9 @@ from posts.serializers import PostContentSerializer, PostSocialSerializer
 from .scrappers.twitter_scrapper import TwitterScrapper
 import json
 from dotenv import load_dotenv
+from .scrappers.linkedin_scrapper import LinkedinScrapper
+from .services import convert_linkedin_relative_datetime_to_date
+
 
 load_dotenv()
 
@@ -276,12 +279,16 @@ def get_twitter_posts(request):
         date_obj = datetime.strptime(date_str, "%b %d, %Y · %I:%M %p UTC")
         formatted_date = date_obj.strftime("%Y-%m-%d")
 
+        stats = tweet['stats']
+        total_activity = sum(stats.values())
+
         formatted_tweet = {
             "post_source_url": tweet['link'],
             "post_source_id": post_source_id,
             "title": tweet['text'],
             "post_source_date": formatted_date,
             "platform": "Twitter",
+            "total_activity": total_activity,
             "author": {
                 "name": tweet['user']['name'],
                 "username": tweet['user']['username'],
@@ -292,3 +299,60 @@ def get_twitter_posts(request):
         formatted_tweets.append(formatted_tweet)
 
     return Response(formatted_tweets, status=status.HTTP_200_OK)
+
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_linkedin_posts(request):
+    email = os.getenv('LINKEDIN_EMAIL')
+    password = os.getenv('LINKEDIN_PASSWORD')
+    scraper = LinkedinScrapper(email, password)
+
+    username = request.data.get('username')
+
+    if not username:
+        return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    max_results = int(request.data.get('max_results', 3))
+    
+    posts = scraper.get_profile_posts(username, max_results)
+    
+    if not posts:
+        return Response({"message": "No posts found for the given criteria."}, status=status.HTTP_200_OK)
+
+    formatted_posts = []
+    for post in posts:
+        relative_time_str = post.get('actor', {}).get('subDescription', {}).get('text', '')
+        post_date = convert_linkedin_relative_datetime_to_date(relative_time_str.split('•')[0].strip())
+
+        post_activity = post.get('socialDetail', {}).get('totalSocialActivityCounts', {})
+        total_reactions = sum(reaction.get('count', 0) for reaction in post_activity.get('reactionTypeCounts', []))
+        num_comments = post_activity.get('numComments', 0)
+        combined_activity = total_reactions + num_comments
+
+        mini_profile = post.get('actor', {}).get('image', {}).get('attributes', [{}])[0].get('miniProfile', {})
+        author_name = mini_profile.get('firstName', '') + ' ' + mini_profile.get('lastName', '')
+        author_username = mini_profile.get('publicIdentifier', '')
+        author_profile_url = f"https://www.linkedin.com/in/{author_username}"
+        author_profile_avatar = mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('rootUrl', '') + \
+                                mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('artifacts', [{}])[-1].get('fileIdentifyingUrlPathSegment', '')
+
+        formatted_post = {
+            "post_source_url": post.get('socialContent', {}).get('shareUrl', ''),
+            "post_source_id": post.get('updateMetadata', {}).get('urn', ''),
+            "title": post.get('commentary', {}).get('text', {}).get('text', ''), 
+            "post_source_date": post_date,
+            "platform": "LinkedIn",
+            "total_activity": combined_activity,
+            "author": {
+                "name": author_name,
+                "username": author_username,
+                "profile_url": author_profile_url,
+                "profile_avatar": author_profile_avatar
+            }
+        }
+        formatted_posts.append(formatted_post)
+
+    return Response(formatted_posts, status=status.HTTP_200_OK)

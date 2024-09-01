@@ -14,7 +14,7 @@ class TwitterScrapper:
         
         return self.scraper.get_tweets(username, mode='user', number=number, since=since_str, until=until_str)
 
-    def filter_by_date(self, tweets, since=None, until=None):
+    def filter_tweets_by_date(self, tweets, since=None, until=None):
         if not since and not until:
             return tweets
 
