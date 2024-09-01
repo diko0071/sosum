@@ -1,6 +1,7 @@
 from django.db import models
 from platform_scrapper.models import ScrapperLog
 from datetime import datetime
+from django.contrib.auth.models import User
 
 class PostContent(models.Model):
     title = models.CharField(max_length=255)
@@ -36,3 +37,14 @@ class PostSocial(models.Model):
 
     created_at = models.DateField(auto_now_add=True)
     updated_at = models.DateField(auto_now=True)
+
+
+class PromptLog(models.Model):
+    system_message = models.TextField()
+    user_message = models.TextField()
+    response = models.TextField()
+    cost = models.DecimalField(max_digits=10, decimal_places=10)
+    input_tokens = models.PositiveIntegerField(null=True, blank=True)
+    output_tokens = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)  
+    updated_at = models.DateTimeField(auto_now=True)  
