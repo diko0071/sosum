@@ -9,3 +9,10 @@ class PostContentSerializer(serializers.ModelSerializer):
         fields = (
             'title', 'description', 'post_source_url', 'post_source_id', 'author', 'ai_summary', 'platform', 'tags', 'scrapper_log_id', 'post_source_date'
         )
+
+class PostSocialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostSocial
+        fields = (
+            'post_id', 'post_source_url', 'post_source_id', 'platform', 'tags', 'scrapper_log_id', 'post_source_date', 'author'
+        )

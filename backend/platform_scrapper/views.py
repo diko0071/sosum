@@ -11,7 +11,7 @@ from datetime import datetime
 from .scrappers.hackernews_scrapper import HackerNewsScraper
 from .models import ScrapperLog
 from .serializers import ScrapperLogSerializer
-from posts.serializers import PostContentSerializer
+from posts.serializers import PostContentSerializer, PostSocialSerializer
 from .scrappers.twitter_scrapper import TwitterScrapper
 import json
 from dotenv import load_dotenv
@@ -226,7 +226,7 @@ def get_hackernews_posts(request):
 
         for formatted_post in formatted_posts:
             formatted_post['scrapper_log_id'] = scrapper_log.id
-            post_serializer = PostContentSerializer(data=formatted_post)
+            post_serializer = PostSocialSerializer(data=formatted_post)
             if post_serializer.is_valid():
                 post_serializer.save()
             else:
