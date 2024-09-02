@@ -10,7 +10,7 @@ class Platforms(models.TextChoices):
     ARXIV = 'arxiv', 'arXiv'
     TWITTER = 'twitter', 'Twitter'
     LINKEDIN = 'linkedin', 'LinkedIn'
-    HACKERNEWS = 'hackernews', 'Hacker News'
+
 class PostContent(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)

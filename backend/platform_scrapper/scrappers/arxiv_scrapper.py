@@ -1,13 +1,17 @@
-import urllib.request
-import urllib.parse
-import xml.etree.ElementTree as ET
+import arxiv
 from datetime import datetime, timedelta
+import time
+import requests
+from bs4 import BeautifulSoup
+
 
 class ArxivScraper:
     def __init__(self):
-        self.base_url = 'http://export.arxiv.org/api/query?'
+        self.search = arxiv.Search()
         self.search_query = []
         self.max_results = 10
+        self.sort_by = arxiv.SortCriterion.Relevance
+        self.sort_order = arxiv.SortOrder.Descending
 
     def filter_by_category(self, category):
         self.search_query.append(f'cat:{category}')
@@ -28,59 +32,73 @@ class ArxivScraper:
         self.max_results = max_results
 
     def set_order(self, sort_by, sort_order='descending'):
-        if sort_by not in ['submittedDate', 'relevance']:
+        if sort_by == 'submittedDate':
+            self.sort_by = arxiv.SortCriterion.SubmittedDate
+        elif sort_by == 'relevance':
+            self.sort_by = arxiv.SortCriterion.Relevance
+        else:
             raise ValueError("sort_by must be either 'submittedDate' or 'relevance'")
-        if sort_order not in ['ascending', 'descending']:
+
+        if sort_order == 'ascending':
+            self.sort_order = arxiv.SortOrder.Ascending
+        elif sort_order == 'descending':
+            self.sort_order = arxiv.SortOrder.Descending
+        else:
             raise ValueError("sort_order must be either 'ascending' or 'descending'")
         
-        self.sort_by = sort_by
-        self.sort_order = sort_order
-
     def get_all_categories(self):
-        url = 'http://export.arxiv.org/oai2?verb=ListSets'
-        
-        with urllib.request.urlopen(url) as response:
-            xml_data = response.read()
-        
-        root = ET.fromstring(xml_data)
-        categories = []
-        for set_elem in root.findall('.//{http://www.openarchives.org/OAI/2.0/}set'):
-            spec = set_elem.find('{http://www.openarchives.org/OAI/2.0/}setSpec').text
-            name = set_elem.find('{http://www.openarchives.org/OAI/2.0/}setName').text
-            categories.append({'spec': spec, 'name': name})
-        
-        return categories
+        url = "https://arxiv.org/category_taxonomy"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            categories = []
+            taxonomy_list = soup.find('div', id='category_taxonomy_list')
+            if not taxonomy_list:
+                raise Exception("Category taxonomy list not found")
+
+            for accordion_body in taxonomy_list.find_all('div', class_='accordion-body'):
+                group_name = accordion_body.find_previous('h2', class_='accordion-head').text.strip()
+                for column in accordion_body.find_all('div', class_='column'):
+                    for category in column.find_all('div', class_='is-one-fifth'):
+                        h4 = category.find('h4')
+                        if h4:
+                            code = h4.text.split()[0]
+                            name = h4.find('span').text.strip() if h4.find('span') else h4.text.strip()
+                            name = name.strip('()')
+                            categories.append({
+                                'spec': code,
+                                'name': name
+                            })
+            
+            if not categories:
+                raise Exception("No categories found. The page structure might have changed.")
+            
+            return categories
+        except requests.RequestException as e:
+            raise Exception(f"Error fetching arXiv taxonomy: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Unexpected error while parsing arXiv taxonomy: {str(e)}")
 
     def get_papers(self):
-        params = {
-            'search_query': ' AND '.join(self.search_query),
-            'start': 0,
-            'max_results': self.max_results,
-            'sortBy': self.sort_by,
-            'sortOrder': self.sort_order
-        }
-        query_string = urllib.parse.urlencode(params)
-        url = self.base_url + query_string
-        
-        with urllib.request.urlopen(url) as response:
-            xml_data = response.read()
-        
-        root = ET.fromstring(xml_data)
-        
-        papers = []
-        for entry in root.findall('{http://www.w3.org/2005/Atom}entry'):
-            primary_category = entry.find('{http://arxiv.org/schemas/atom}primary_category')
-            categories = entry.findall('{http://www.w3.org/2005/Atom}category')
+        query = ' AND '.join(self.search_query)
+        self.search.query = query
+        self.search.max_results = self.max_results
+        self.search.sort_by = self.sort_by
+        self.search.sort_order = self.sort_order
 
+        papers = []
+        for result in self.search.results():
             paper = {
-                'title': entry.find('{http://www.w3.org/2005/Atom}title').text,
-                'authors': [author.find('{http://www.w3.org/2005/Atom}name').text for author in entry.findall('{http://www.w3.org/2005/Atom}author')],
-                'summary': entry.find('{http://www.w3.org/2005/Atom}summary').text,
-                'published': entry.find('{http://www.w3.org/2005/Atom}published').text,
-                'link': entry.find('{http://www.w3.org/2005/Atom}id').text,
-                'primary_category': primary_category.get('term') if primary_category is not None else None,
-                'categories': [category.get('term') for category in categories],
-                'cat': primary_category.get('term').split('.')[0] if primary_category is not None else None
+                'title': result.title,
+                'authors': [author.name for author in result.authors],
+                'summary': result.summary,
+                'published': result.published.strftime('%Y-%m-%d %H:%M:%S'),
+                'link': result.entry_id,
+                'primary_category': result.primary_category,
+                'categories': result.categories,
+                'cat': result.primary_category.split('.')[0] if result.primary_category else None
             }
             papers.append(paper)
         

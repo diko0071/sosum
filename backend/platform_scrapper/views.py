@@ -8,7 +8,6 @@ from .scrappers.arxiv_scrapper import ArxivScraper
 from rest_framework.response import Response
 from .scrappers.producthunt_scrapper import ProductHuntScraper
 from datetime import datetime
-from .scrappers.hackernews_scrapper import HackerNewsScraper
 from .models import ScrapperLog
 from .serializers import ScrapperLogSerializer
 from posts.serializers import PostContentSerializer, PostSocialSerializer
@@ -164,82 +163,6 @@ def get_producthunt_posts(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_products, status=status.HTTP_200_OK)
-
-@api_view(['GET'])
-@authentication_classes([])
-@permission_classes([])
-def get_hackernews_posts(request):
-    scraper = HackerNewsScraper()
-
-    date_str = request.data.get('date')
-    max_results = request.data.get('max_results')
-    post_type = request.data.get('post_type', 'posts')
-    keyword = request.data.get('keyword')
-
-    if date_str:
-        try:
-            scraper.filter_by_date(date_str)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    if max_results:
-        max_results = int(max_results)
-    else:
-        max_results = 50
-
-    if post_type == 'asks':
-        posts = scraper.get_asks(max_results=max_results)
-    else:
-        posts = scraper.get_posts(max_results=max_results)
-
-    if keyword:
-        posts = scraper.filter_by_keyword(posts, keyword)
-
-    posts = scraper.set_order(posts, order_by='score', reverse=True)
-
-    if not posts:
-        return Response({"message": "No posts found for the given criteria."}, status=status.HTTP_200_OK)
-
-    formatted_posts = []
-    for post in posts:
-        post_id = post.get("id", "")
-        formatted_post = {
-            "title": post.get("title", ""),
-            "description": post.get("text", ""),
-            "post_source_url": f"https://news.ycombinator.com/item?id={post_id}",
-            "post_source_id": post_id,
-            "post_source_date": datetime.fromtimestamp(post.get("time", 0)).strftime('%Y-%m-%d'),
-            "platform": "hackernews",
-            "tags": ""
-        }
-        formatted_posts.append(formatted_post)
-
-    log_data = {
-        'scrap_date': datetime.now().date(),
-        'scrapper_name': 'HackerNewsScraper',
-        'platform': 'hackernews',
-        'scrapper_category': "",
-        'keyword': keyword or '',
-        'max_results': max_results,
-    }
-    
-    serializer = ScrapperLogSerializer(data=log_data)
-    
-    if serializer.is_valid():
-        scrapper_log = serializer.save()
-
-        for formatted_post in formatted_posts:
-            formatted_post['scrapper_log_id'] = scrapper_log.id
-            post_serializer = PostSocialSerializer(data=formatted_post)
-            if post_serializer.is_valid():
-                post_serializer.save()
-            else:
-                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    return Response(formatted_posts, status=status.HTTP_200_OK)
-
 
 @api_view(['GET'])
 @authentication_classes([])
