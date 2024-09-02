@@ -10,4 +10,3 @@ class ScrapperLog(models.Model):
     max_results = models.IntegerField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    

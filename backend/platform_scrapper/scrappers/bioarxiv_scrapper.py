@@ -1,4 +1,5 @@
 import requests
+from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
 class BioarxivScraper:
@@ -25,6 +26,21 @@ class BioarxivScraper:
 
     def set_cursor(self, cursor):
         self.cursor = cursor
+
+    def get_all_categories(self):
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        url = f"{self.base_url}{start_date}/{end_date}/0"
+        
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            all_categories = [item['category'] for item in data.get('collection', [])]
+            unique_categories = sorted(set(all_categories))
+            return unique_categories
+        else:
+            print(f"Error fetching data: {response.status_code}")
+            return []
 
     def get_papers(self):
         if self.start_date and self.end_date:

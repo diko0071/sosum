@@ -36,6 +36,21 @@ class ArxivScraper:
         self.sort_by = sort_by
         self.sort_order = sort_order
 
+    def get_all_categories(self):
+        url = 'http://export.arxiv.org/oai2?verb=ListSets'
+        
+        with urllib.request.urlopen(url) as response:
+            xml_data = response.read()
+        
+        root = ET.fromstring(xml_data)
+        categories = []
+        for set_elem in root.findall('.//{http://www.openarchives.org/OAI/2.0/}set'):
+            spec = set_elem.find('{http://www.openarchives.org/OAI/2.0/}setSpec').text
+            name = set_elem.find('{http://www.openarchives.org/OAI/2.0/}setName').text
+            categories.append({'spec': spec, 'name': name})
+        
+        return categories
+
     def get_papers(self):
         params = {
             'search_query': ' AND '.join(self.search_query),

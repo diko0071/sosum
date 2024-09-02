@@ -55,7 +55,7 @@ def get_arxiv_papers(request):
             "post_source_url": paper.get("link", ""),
             "post_source_id": paper.get("link", "").split("/")[-1],
             "post_source_date": paper.get("published", "")[:10],
-            "platform": "Arxiv",
+            "platform": "arxiv",
             "tags": f'{keyword}, {category}' if keyword and category else keyword or category
         }
         formatted_papers.append(formatted_paper)
@@ -63,7 +63,7 @@ def get_arxiv_papers(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'ArxivScraper',
-        'platform': 'Arxiv',
+        'platform': 'arxiv',
         'scrapper_category': category or '',
         'keyword': keyword or '',
         'max_results': max_results or 0,
@@ -84,7 +84,7 @@ def get_arxiv_papers(request):
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(formatted_paper, status=status.HTTP_200_OK)
+    return Response(formatted_papers, status=status.HTTP_200_OK)
 
 
 
@@ -134,7 +134,7 @@ def get_producthunt_posts(request):
                         "post_source_url": product.get("url", ""), 
                         "post_source_id": product.get("id", ""), 
                         "post_source_date": product.get("createdAt", "")[:10],
-                        "platform": "Product Hunt",
+                        "platform": "producthunt",
                         "tags": ", ".join([topic["node"]["name"] for topic in product.get("topics", {}).get("edges", [])])
                     }
                     formatted_products.append(formatted_product)
@@ -142,7 +142,7 @@ def get_producthunt_posts(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'ProductHuntScraper',
-        'platform': 'Product Hunt',
+        'platform': 'producthunt',
         'scrapper_category': topic or '',
         'keyword': search_term or '',
         'max_results': max_results,
@@ -209,7 +209,7 @@ def get_hackernews_posts(request):
             "post_source_url": f"https://news.ycombinator.com/item?id={post_id}",
             "post_source_id": post_id,
             "post_source_date": datetime.fromtimestamp(post.get("time", 0)).strftime('%Y-%m-%d'),
-            "platform": "Hacker News",
+            "platform": "hackernews",
             "tags": ""
         }
         formatted_posts.append(formatted_post)
@@ -217,7 +217,7 @@ def get_hackernews_posts(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'HackerNewsScraper',
-        'platform': 'Hacker News',
+        'platform': 'hackernews',
         'scrapper_category': "",
         'keyword': keyword or '',
         'max_results': max_results,
@@ -288,7 +288,7 @@ def get_twitter_posts(request):
             "post_source_id": post_source_id,
             "title": tweet['text'],
             "post_source_date": formatted_date,
-            "platform": "Twitter",
+            "platform": "twitter",
             "total_activity": total_activity,
             "author": {
                 "name": tweet['user']['name'],
@@ -345,7 +345,7 @@ def get_linkedin_posts(request):
             "post_source_id": post.get('updateMetadata', {}).get('urn', ''),
             "title": post.get('commentary', {}).get('text', {}).get('text', ''), 
             "post_source_date": post_date,
-            "platform": "LinkedIn",
+            "platform": "linkedin",
             "total_activity": combined_activity,
             "author": {
                 "name": author_name,
@@ -397,9 +397,39 @@ def get_bioarxiv_papers(request):
             "post_source_url": f"https://www.biorxiv.org/content/{paper['doi']}v{paper['version']}",
             "post_source_id": paper['doi'],
             "post_source_date": paper['date'],
-            "platform": "bioRxiv",
+            "platform": "bioarxiv",
             "tags": f"{category}, {keyword}" if category and keyword else category or keyword or ""
         }
         formatted_papers.append(formatted_paper)
 
     return Response(formatted_papers, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_producthunt_categories(request):
+    api_key = os.getenv('PRODUCTHUNT_DEVELOPER_TOKEN')
+    if not api_key:
+        return Response({"error": "API key not found"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    scraper = ProductHuntScraper(api_key)
+    categories = scraper.get_all_topics()
+    return Response(categories, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_bioarxiv_categories(request):
+    scraper = BioarxivScraper()
+    categories = scraper.get_all_categories()
+    return Response(categories, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_arxiv_categories(request):
+    scraper = ArxivScraper()
+    categories = scraper.get_all_categories()
+    return Response(categories, status=status.HTTP_200_OK)

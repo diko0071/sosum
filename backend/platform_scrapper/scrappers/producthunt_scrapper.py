@@ -133,3 +133,63 @@ class ProductHuntScraper:
             search_term in product['tagline'].lower() or
             search_term in product['description'].lower()
         ]
+  
+
+    def get_all_topics(self):
+        query = """
+        query($after: String, $first: Int, $postedAfter: DateTime) {
+          topics(after: $after, first: $first, order: FOLLOWERS_COUNT) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            edges {
+              node {
+                id
+                name
+                slug
+                posts(postedAfter: $postedAfter, first: 1) {
+                  totalCount
+                }
+              }
+            }
+          }
+        }
+        """
+
+        all_topics = {}
+        has_next_page = True
+        after = None
+        one_year_ago = (datetime.now() - timedelta(days=365)).isoformat()
+
+        try:
+            while has_next_page:
+                variables = {
+                    "first": 100,
+                    "after": after,
+                    "postedAfter": one_year_ago
+                }
+                
+                response = requests.post(self.api_url, json={'query': query, 'variables': variables}, headers=self.headers)
+                response.raise_for_status()
+                
+                data = response.json()
+
+                if 'data' in data and 'topics' in data['data']:
+                    topics = data['data']['topics']['edges']
+                    for topic in topics:
+                        if topic['node']['posts']['totalCount'] > 0:
+                            all_topics[topic['node']['slug']] = topic['node']['name']
+                    
+                    page_info = data['data']['topics']['pageInfo']
+                    has_next_page = page_info['hasNextPage']
+                    after = page_info['endCursor']
+                else:
+                    has_next_page = False
+
+            return sorted(all_topics.items(), key=lambda x: x[1])
+        except requests.exceptions.RequestException as e:
+            print(f"Request error: {str(e)}")
+            raise e
+        except Exception as e:
+            raise e
