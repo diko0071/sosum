@@ -68,7 +68,7 @@ class ArxivScraper:
                             name = h4.find('span').text.strip() if h4.find('span') else h4.text.strip()
                             name = name.strip('()')
                             categories.append({
-                                'spec': code,
+                                'slug': code,
                                 'name': name
                             })
             

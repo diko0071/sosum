@@ -154,7 +154,7 @@ class ProductHuntScraper:
         }
         """
 
-        all_topics = {}
+        all_topics = []
         has_next_page = True
         after = None
 
@@ -173,7 +173,10 @@ class ProductHuntScraper:
                 if 'data' in data and 'topics' in data['data']:
                     topics = data['data']['topics']['edges']
                     for topic in topics:
-                        all_topics[topic['node']['slug']] = topic['node']['name']
+                        all_topics.append({
+                            'slug': topic['node']['slug'],
+                            'name': topic['node']['name']
+                        })
                     
                     page_info = data['data']['topics']['pageInfo']
                     has_next_page = page_info['hasNextPage']
@@ -183,7 +186,7 @@ class ProductHuntScraper:
                     if 'errors' in data:
                         raise Exception(f"GraphQL errors: {data['errors']}")
 
-            return sorted(all_topics.items(), key=lambda x: x[1])
+            return sorted(all_topics, key=lambda x: x['name'])
         except requests.exceptions.RequestException as e:
             raise Exception(f"Request error: {str(e)}")
         except Exception as e:

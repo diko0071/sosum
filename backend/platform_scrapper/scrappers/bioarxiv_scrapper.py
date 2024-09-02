@@ -37,7 +37,21 @@ class BioarxivScraper:
             data = response.json()
             all_categories = [item['category'] for item in data.get('collection', [])]
             unique_categories = sorted(set(all_categories))
-            return unique_categories
+            
+            def capitalize_name(name):
+                words = name.split()
+                capitalized_words = [word.capitalize() if word.lower() not in ['of', 'and', 'or'] else word.lower() for word in words]
+                return ' '.join(capitalized_words)
+            
+            formatted_categories = [
+                {
+                    "slug": category.strip(),
+                    "name": capitalize_name(category.strip())
+                }
+                for category in unique_categories
+            ]
+            
+            return formatted_categories
         else:
             print(f"Error fetching data: {response.status_code}")
             return []
