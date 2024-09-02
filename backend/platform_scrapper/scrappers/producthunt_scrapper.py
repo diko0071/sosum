@@ -137,7 +137,7 @@ class ProductHuntScraper:
 
     def get_all_topics(self):
         query = """
-        query($after: String, $first: Int, $postedAfter: DateTime) {
+        query($after: String, $first: Int) {
           topics(after: $after, first: $first, order: FOLLOWERS_COUNT) {
             pageInfo {
               hasNextPage
@@ -148,9 +148,6 @@ class ProductHuntScraper:
                 id
                 name
                 slug
-                posts(postedAfter: $postedAfter, first: 1) {
-                  totalCount
-                }
               }
             }
           }
@@ -160,14 +157,12 @@ class ProductHuntScraper:
         all_topics = {}
         has_next_page = True
         after = None
-        one_year_ago = (datetime.now() - timedelta(days=365)).isoformat()
 
         try:
             while has_next_page:
                 variables = {
                     "first": 100,
-                    "after": after,
-                    "postedAfter": one_year_ago
+                    "after": after
                 }
                 
                 response = requests.post(self.api_url, json={'query': query, 'variables': variables}, headers=self.headers)
@@ -178,18 +173,18 @@ class ProductHuntScraper:
                 if 'data' in data and 'topics' in data['data']:
                     topics = data['data']['topics']['edges']
                     for topic in topics:
-                        if topic['node']['posts']['totalCount'] > 0:
-                            all_topics[topic['node']['slug']] = topic['node']['name']
+                        all_topics[topic['node']['slug']] = topic['node']['name']
                     
                     page_info = data['data']['topics']['pageInfo']
                     has_next_page = page_info['hasNextPage']
                     after = page_info['endCursor']
                 else:
                     has_next_page = False
+                    if 'errors' in data:
+                        raise Exception(f"GraphQL errors: {data['errors']}")
 
             return sorted(all_topics.items(), key=lambda x: x[1])
         except requests.exceptions.RequestException as e:
-            print(f"Request error: {str(e)}")
-            raise e
+            raise Exception(f"Request error: {str(e)}")
         except Exception as e:
-            raise e
+            raise Exception(f"Unexpected error: {str(e)}")
