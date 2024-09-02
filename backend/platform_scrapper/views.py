@@ -22,10 +22,10 @@ from .scrappers.bioarxiv_scrapper import BioarxivScraper
 load_dotenv()
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_arxiv_papers(request):
+def scrap_arxiv_papers(request):
     scraper = ArxivScraper()
 
     date = request.data.get('date')
@@ -87,10 +87,10 @@ def get_arxiv_papers(request):
 
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_producthunt_posts(request):
+def scrap_producthunt_posts(request):
     api_key = os.getenv('PRODUCTHUNT_DEVELOPER_TOKEN')
     if not api_key:
         return Response({"error": "API key not found"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -164,10 +164,10 @@ def get_producthunt_posts(request):
 
     return Response(formatted_products, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_twitter_posts(request):
+def scrap_twitter_posts(request):
     scraper = TwitterScrapper()
 
     username = request.data.get('username')
@@ -226,10 +226,10 @@ def get_twitter_posts(request):
 
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_linkedin_posts(request):
+def scrap_linkedin_posts(request):
     email = os.getenv('LINKEDIN_EMAIL')
     password = os.getenv('LINKEDIN_PASSWORD')
     scraper = LinkedinScrapper(email, password)
@@ -281,10 +281,10 @@ def get_linkedin_posts(request):
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_bioarxiv_papers(request):
+def scrap_bioarxiv_papers(request):
     scraper = BioarxivScraper()
 
     date = request.data.get('date')
@@ -328,10 +328,10 @@ def get_bioarxiv_papers(request):
     return Response(formatted_papers, status=status.HTTP_200_OK)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_producthunt_categories(request):
+def scrap_producthunt_categories(request):
     api_key = os.getenv('PRODUCTHUNT_DEVELOPER_TOKEN')
     if not api_key:
         return Response({"error": "API key not found"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -341,18 +341,18 @@ def get_producthunt_categories(request):
     return Response(categories, status=status.HTTP_200_OK)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_bioarxiv_categories(request):
+def scrap_bioarxiv_categories(request):
     scraper = BioarxivScraper()
     categories = scraper.get_all_categories()
     return Response(categories, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+@api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
-def get_arxiv_categories(request):
+def scrap_arxiv_categories(request):
     scraper = ArxivScraper()
     categories = scraper.get_all_categories()
     return Response(categories, status=status.HTTP_200_OK)
