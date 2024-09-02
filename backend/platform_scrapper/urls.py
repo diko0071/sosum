@@ -7,4 +7,5 @@ urlpatterns = [
     path('hackernews/get_list/', get_hackernews_posts, name='hackernews_posts'),
     path('twitter/get_list/', get_twitter_posts, name='twitter_posts'),
     path('linkedin/get_list/', get_linkedin_posts, name='linkedin_posts'),
+    path('bioarxiv/get_list/', get_bioarxiv_papers, name='bioarxiv_papers'),
 ]

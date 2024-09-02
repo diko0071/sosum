@@ -17,6 +17,7 @@ import json
 from dotenv import load_dotenv
 from .scrappers.linkedin_scrapper import LinkedinScrapper
 from .services import convert_linkedin_relative_datetime_to_date
+from .scrappers.bioarxiv_scrapper import BioarxivScraper
 
 
 load_dotenv()
@@ -356,3 +357,49 @@ def get_linkedin_posts(request):
         formatted_posts.append(formatted_post)
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def get_bioarxiv_papers(request):
+    scraper = BioarxivScraper()
+
+    date = request.data.get('date')
+    category = request.data.get('category')
+    keyword = request.data.get('keyword')
+    max_results = request.data.get('max_results')
+
+    if date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        scraper.filter_by_date_range(date, end_date)
+    elif max_results:
+        scraper.filter_by_most_recent(int(max_results))
+    else:
+        scraper.filter_by_recent_days(30)
+
+    papers = scraper.get_papers()
+
+    ## Fix keyword to seach it everywhere
+    if keyword:
+        papers = [paper for paper in papers if keyword.lower() in paper['title'].lower() or keyword.lower() in paper['abstract'].lower()]
+
+    if category:
+        papers = [paper for paper in papers if category.lower() in paper['category'].lower()]
+
+    if max_results:
+        papers = papers[:int(max_results)]
+
+    formatted_papers = []
+    for paper in papers:
+        formatted_paper = {
+            "title": paper['title'].replace("\n", " ").strip(),
+            "description": paper['abstract'].replace("\n", " ").strip(),
+            "post_source_url": f"https://www.biorxiv.org/content/{paper['doi']}v{paper['version']}",
+            "post_source_id": paper['doi'],
+            "post_source_date": paper['date'],
+            "platform": "bioRxiv",
+            "tags": f"{category}, {keyword}" if category and keyword else category or keyword or ""
+        }
+        formatted_papers.append(formatted_paper)
+
+    return Response(formatted_papers, status=status.HTTP_200_OK)
