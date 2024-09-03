@@ -9,8 +9,8 @@ class PlatformName(models.TextChoices):
 
 
 class PlatformCategory(models.Model):
-    category_name = models.CharField(max_length=255)
-    category_slug = models.CharField(max_length=255, blank=True, null=True)
+    name = models.CharField(max_length=255)
+    slug = models.CharField(max_length=255, blank=True, null=True)
     platform = models.CharField(max_length=255, choices=PlatformName.choices, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from .scrappers.producthunt_scrapper import ProductHuntScraper
 from datetime import datetime
 from .models import ScrapperLog
-from .serializers import ScrapperLogSerializer
+from .serializers import ScrapperLogSerializer, PlatformCategorySerializer
 from posts.serializers import PostContentSerializer, PostSocialSerializer
 from .scrappers.twitter_scrapper import TwitterScrapper
 import json
@@ -30,15 +30,12 @@ def scrap_arxiv_papers(request):
 
     date = request.data.get('date')
     category = request.data.get('category')
-    keyword = request.data.get('keyword')
     max_results = request.data.get('max_results')
 
     if date:
         scraper.filter_by_date(date)
     if category:
         scraper.filter_by_category(category)
-    if keyword:
-        scraper.filter_by_keyword(keyword)
     if max_results:
         scraper.set_max_results(int(max_results))
 
@@ -55,7 +52,7 @@ def scrap_arxiv_papers(request):
             "post_source_id": paper.get("link", "").split("/")[-1],
             "post_source_date": paper.get("published", "")[:10],
             "platform": "arxiv",
-            "tags": f'{keyword}, {category}' if keyword and category else keyword or category
+            "tags": paper.get("cat", "")
         }
         formatted_papers.append(formatted_paper)
 
@@ -64,7 +61,7 @@ def scrap_arxiv_papers(request):
         'scrapper_name': 'ArxivScraper',
         'platform': 'arxiv',
         'scrapper_category': category or '',
-        'keyword': keyword or '',
+        'keyword': '',
         'max_results': max_results or 0,
     }
 
@@ -86,7 +83,6 @@ def scrap_arxiv_papers(request):
     return Response(formatted_papers, status=status.HTTP_200_OK)
 
 
-
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([])
@@ -100,7 +96,6 @@ def scrap_producthunt_posts(request):
     date_str = request.data.get('date')
     topic = request.data.get('category')
     max_results = int(request.data.get('max_results', 50))
-    search_term = request.data.get('keyword')
 
     scraper.set_order("VOTES")
 
@@ -113,9 +108,6 @@ def scrap_producthunt_posts(request):
 
     if topic:
         scraper.filter_by_topic(topic)
-
-    if search_term:
-        scraper.filter_by_search(search_term)
 
     products = scraper.get_products(max_results=max_results)
 
@@ -143,7 +135,7 @@ def scrap_producthunt_posts(request):
         'scrapper_name': 'ProductHuntScraper',
         'platform': 'producthunt',
         'scrapper_category': topic or '',
-        'keyword': search_term or '',
+        'keyword':  '',
         'max_results': max_results,
     }
     
@@ -174,14 +166,12 @@ def scrap_twitter_posts(request):
     if not username:
         return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    since_str = request.data.get('since')
-    until_str = request.data.get('until')
+    since_str = request.data.get('date')
     max_results = int(request.data.get('max_results', 50))
 
     since = datetime.strptime(since_str, '%Y-%m-%d') if since_str else None
-    until = datetime.strptime(until_str, '%Y-%m-%d') if until_str else None
 
-    tweets_data = scraper.get_tweets(username, since=since, until=until, number=max_results)
+    tweets_data = scraper.get_tweets(username, since=since, number=max_results)
     
     if isinstance(tweets_data, str):
         try:
@@ -235,13 +225,22 @@ def scrap_linkedin_posts(request):
     scraper = LinkedinScrapper(email, password)
 
     username = request.data.get('username')
+    date_str = request.data.get('date')
 
     if not username:
         return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    max_results = int(request.data.get('max_results', 3))
+    max_results = int(request.data.get('max_results', 50))
     
     posts = scraper.get_profile_posts(username, max_results)
+
+    if date_str:
+        try:
+            requested_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        requested_date = None
     
     if not posts:
         return Response({"message": "No posts found for the given criteria."}, status=status.HTTP_200_OK)
@@ -250,6 +249,9 @@ def scrap_linkedin_posts(request):
     for post in posts:
         relative_time_str = post.get('actor', {}).get('subDescription', {}).get('text', '')
         post_date = convert_linkedin_relative_datetime_to_date(relative_time_str.split('•')[0].strip())
+        
+        if requested_date and post_date != requested_date.strftime('%Y-%m-%d'):
+            continue
 
         post_activity = post.get('socialDetail', {}).get('totalSocialActivityCounts', {})
         total_reactions = sum(reaction.get('count', 0) for reaction in post_activity.get('reactionTypeCounts', []))
@@ -262,7 +264,7 @@ def scrap_linkedin_posts(request):
         author_profile_url = f"https://www.linkedin.com/in/{author_username}"
         author_profile_avatar = mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('rootUrl', '') + \
                                 mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('artifacts', [{}])[-1].get('fileIdentifyingUrlPathSegment', '')
-
+ 
         formatted_post = {
             "post_source_url": post.get('socialContent', {}).get('shareUrl', ''),
             "post_source_id": post.get('updateMetadata', {}).get('urn', ''),
@@ -338,7 +340,19 @@ def scrap_producthunt_categories(request):
 
     scraper = ProductHuntScraper(api_key)
     categories = scraper.get_all_topics()
-    return Response(categories, status=status.HTTP_200_OK)
+    
+    saved_categories = []
+    for category in categories:
+        serializer = PlatformCategorySerializer(data={
+            'slug': category['slug'],
+            'name': category['name'],
+            'platform': 'producthunt'
+        })
+        if serializer.is_valid():
+            serializer.save()
+            saved_categories.append(serializer.data)
+    
+    return Response(saved_categories, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -347,7 +361,21 @@ def scrap_producthunt_categories(request):
 def scrap_bioarxiv_categories(request):
     scraper = BioarxivScraper()
     categories = scraper.get_all_categories()
-    return Response(categories, status=status.HTTP_200_OK)
+    
+    saved_categories = []
+    for category in categories:
+        serializer = PlatformCategorySerializer(data={
+            'slug': category['slug'],
+            'name': category['name'],
+            'platform': 'bioarxiv'
+        })
+        if serializer.is_valid():
+            serializer.save()
+            saved_categories.append(serializer.data)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    return Response(saved_categories, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @authentication_classes([])
@@ -355,4 +383,16 @@ def scrap_bioarxiv_categories(request):
 def scrap_arxiv_categories(request):
     scraper = ArxivScraper()
     categories = scraper.get_all_categories()
-    return Response(categories, status=status.HTTP_200_OK)
+    
+    saved_categories = []
+    for category in categories:
+        serializer = PlatformCategorySerializer(data={
+            'slug': category['slug'],
+            'name': category['name'],
+            'platform': 'arxiv'
+        })
+        if serializer.is_valid():
+            serializer.save()
+            saved_categories.append(serializer.data)
+    
+    return Response(saved_categories, status=status.HTTP_200_OK)

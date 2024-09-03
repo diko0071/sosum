@@ -9,7 +9,7 @@ class ArxivScraper:
     def __init__(self):
         self.search = arxiv.Search()
         self.search_query = []
-        self.max_results = 10
+        self.max_results = 100
         self.sort_by = arxiv.SortCriterion.Relevance
         self.sort_order = arxiv.SortOrder.Descending
 
@@ -20,8 +20,9 @@ class ArxivScraper:
         try:
             parsed_date = datetime.strptime(date, "%Y-%m-%d")
             next_day = parsed_date + timedelta(days=1)
-            formatted_date = next_day.strftime("%Y%m%d%H%M%S")
-            self.search_query.append(f'submittedDate:[* TO {formatted_date}]')
+            formatted_start_date = parsed_date.strftime("%Y%m%d%H%M%S")
+            formatted_end_date = next_day.strftime("%Y%m%d%H%M%S")
+            self.search_query.append(f'submittedDate:[{formatted_start_date} TO {formatted_end_date}]')
         except ValueError:
             raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
 
@@ -98,7 +99,7 @@ class ArxivScraper:
                 'link': result.entry_id,
                 'primary_category': result.primary_category,
                 'categories': result.categories,
-                'cat': result.primary_category.split('.')[0] if result.primary_category else None
+                'cat': result.primary_category  
             }
             papers.append(paper)
         

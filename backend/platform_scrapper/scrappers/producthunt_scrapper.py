@@ -16,7 +16,8 @@ class ProductHuntScraper:
         self.featured = None
         self.order = None
         self.search_term = None
-
+        self.max_results = 50
+        
     def filter_by_date_range(self, start_date, end_date):
         self.posted_after = start_date
         self.posted_before = end_date
@@ -33,7 +34,9 @@ class ProductHuntScraper:
     def filter_by_search_term(self, search_term):
         self.search_term = search_term
 
-    def get_products(self, max_results=50):
+    def get_products(self, max_results=None):
+        if max_results:
+            self.max_results = max_results
         query = """
         query($after: String, $before: String, $featured: Boolean, $first: Int, $order: PostsOrder, $postedAfter: DateTime, $postedBefore: DateTime, $topic: String) {
           posts(
