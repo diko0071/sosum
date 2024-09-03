@@ -134,7 +134,7 @@ def scrap_producthunt_posts(request):
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'ProductHuntScraper',
         'platform': 'producthunt',
-        'scrapper_category': topic or '',
+        'scrapper_category': '',
         'keyword':  '',
         'max_results': max_results,
     }
@@ -160,8 +160,12 @@ def scrap_producthunt_posts(request):
 @authentication_classes([])
 @permission_classes([])
 def scrap_twitter_posts(request):
-    scraper = TwitterScrapper()
-
+    nitter_instances_str = os.getenv('NITTER_INSTANCES')
+    if not nitter_instances_str:
+        return Response({"error": "NITTER_INSTANCES not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    NITTER_INSTANCES = nitter_instances_str.split(',')
+    
     username = request.data.get('username')
     if not username:
         return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -171,18 +175,23 @@ def scrap_twitter_posts(request):
 
     since = datetime.strptime(since_str, '%Y-%m-%d') if since_str else None
 
-    tweets_data = scraper.get_tweets(username, since=since, number=max_results)
-    
-    if isinstance(tweets_data, str):
-        try:
-            tweets_data = json.loads(tweets_data)
-        except json.JSONDecodeError:
-            return Response({"error": "Invalid data format from Twitter scraper"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    tweets = []
+    for instance in NITTER_INSTANCES:
+        scraper = TwitterScrapper(instance=instance)
+        tweets_data = scraper.get_tweets(username, since=since, number=max_results)
+        
+        if isinstance(tweets_data, str):
+            try:
+                tweets_data = json.loads(tweets_data)
+            except json.JSONDecodeError:
+                continue 
 
-    tweets = tweets_data.get('tweets', [])
+        tweets = tweets_data.get('tweets', [])
+        if tweets:
+            break
 
     if not tweets:
-        return Response({"message": "No tweets found for the given criteria."}, status=status.HTTP_200_OK)
+        return Response({"message": "No tweets found for the given criteria across all instances."}, status=status.HTTP_200_OK)
 
     formatted_tweets = []
     
@@ -199,18 +208,44 @@ def scrap_twitter_posts(request):
         formatted_tweet = {
             "post_source_url": tweet['link'],
             "post_source_id": post_source_id,
-            "title": tweet['text'],
+            "title": f"{tweet['user']['name']} Tweet",
+            "description": tweet['text'],
             "post_source_date": formatted_date,
             "platform": "twitter",
             "total_activity": total_activity,
-            "author": {
+            "ai_tags": "",
+            "author": json.dumps({
                 "name": tweet['user']['name'],
                 "username": tweet['user']['username'],
                 "profile_url": f"https://twitter.com/{tweet['user']['username'].lstrip('@')}",
                 "profile_avatar": tweet['user']['avatar']
-            }
+            })
         }
         formatted_tweets.append(formatted_tweet)
+
+    log_data = {
+        'scrap_date': datetime.now().date(),
+        'scrapper_name': 'TwitterScraper',
+        'platform': 'twitter',
+        'scrapper_category': '',
+        'keyword': '',
+        'max_results': max_results,
+    }
+
+    log_serializer = ScrapperLogSerializer(data=log_data)
+    
+    if log_serializer.is_valid():
+        scrapper_log = log_serializer.save()
+
+        for formatted_tweet in formatted_tweets:
+            formatted_tweet['scrapper_log_id'] = scrapper_log.id
+            post_serializer = PostSocialSerializer(data=formatted_tweet)
+            if post_serializer.is_valid():
+                post_serializer.save()
+            else:
+                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(log_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_tweets, status=status.HTTP_200_OK)
 
@@ -271,18 +306,44 @@ def scrap_linkedin_posts(request):
         formatted_post = {
             "post_source_url": post.get('socialContent', {}).get('shareUrl', ''),
             "post_source_id": post.get('updateMetadata', {}).get('urn', ''),
-            "title": post.get('commentary', {}).get('text', {}).get('text', ''), 
+            "title": f"{author_name} Post",
+            "description": post.get('commentary', {}).get('text', {}).get('text', ''), 
             "post_source_date": post_date,
             "platform": "linkedin",
             "total_activity": combined_activity,
-            "author": {
+            "ai_tags": "",
+            "author": json.dumps({
                 "name": author_name,
                 "username": author_username,
                 "profile_url": author_profile_url,
                 "profile_avatar": author_profile_avatar
-            }
+            })
         }
         formatted_posts.append(formatted_post)
+
+    log_data = {
+        'scrap_date': datetime.now().date(),
+        'scrapper_name': 'LinkedinScraper',
+        'platform': 'linkedin',
+        'scrapper_category': '',
+        'keyword': '',
+        'max_results': max_results,
+    }
+
+    log_serializer = ScrapperLogSerializer(data=log_data)
+    
+    if log_serializer.is_valid():
+        scrapper_log = log_serializer.save()
+
+        for formatted_post in formatted_posts:
+            formatted_post['scrapper_log_id'] = scrapper_log.id
+            post_serializer = PostSocialSerializer(data=formatted_post)
+            if post_serializer.is_valid():
+                post_serializer.save()
+            else:
+                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(log_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
 
@@ -294,22 +355,21 @@ def scrap_bioarxiv_papers(request):
 
     date = request.data.get('date')
     category = request.data.get('category')
-    keyword = request.data.get('keyword')
     max_results = request.data.get('max_results')
 
-    if date:
-        end_date = datetime.now().strftime('%Y-%m-%d')
-        scraper.filter_by_date_range(date, end_date)
+    start_date = date
+    end_date = date
+
+    if start_date:
+        scraper.filter_by_date_range(start_date, end_date)
+    elif date:
+        scraper.filter_by_recent_days(int(date))
     elif max_results:
         scraper.filter_by_most_recent(int(max_results))
     else:
-        scraper.filter_by_recent_days(30)
+        scraper.filter_by_most_recent(100)
 
     papers = scraper.get_papers()
-
-    ## Fix keyword to seach it everywhere
-    if keyword:
-        papers = [paper for paper in papers if keyword.lower() in paper['title'].lower() or keyword.lower() in paper['abstract'].lower()]
 
     if category:
         papers = [paper for paper in papers if category.lower() in paper['category'].lower()]
@@ -326,9 +386,33 @@ def scrap_bioarxiv_papers(request):
             "post_source_id": paper['doi'],
             "post_source_date": paper['date'],
             "platform": "bioarxiv",
-            "tags": f"{category}, {keyword}" if category and keyword else category or keyword or ""
+            "tags": paper['category'] or ""
         }
         formatted_papers.append(formatted_paper)
+
+    log_data = {
+        'scrap_date': datetime.now().date(),
+        'scrapper_name': 'BioarxivScraper',
+        'platform': 'bioarxiv',
+        'scrapper_category': '',
+        'keyword': '',
+        'max_results': max_results
+    }
+
+    serializer = ScrapperLogSerializer(data=log_data)
+    
+    if serializer.is_valid():
+        scrapper_log = serializer.save()
+
+        for formatted_paper in formatted_papers:
+            formatted_paper['scrapper_log_id'] = scrapper_log.id
+            post_serializer = PostContentSerializer(data=formatted_paper)
+            if post_serializer.is_valid():
+                post_serializer.save()
+            else:
+                return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_papers, status=status.HTTP_200_OK)
 

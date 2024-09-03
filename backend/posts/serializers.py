@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PostContent, PostSocial, PromptLog
+from .models import PostContent, PromptLog, PostSocial
     
 class PostContentSerializer(serializers.ModelSerializer):
     scrapper_log_id = serializers.IntegerField(write_only=True)
@@ -20,7 +20,7 @@ class PostSocialSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostSocial
         fields = (
-            'post_source_url', 'post_source_id', 'platform', 'tags', 'scrapper_log_id', 'post_source_date', 'author'
+            'post_source_url', 'post_source_id', 'platform', 'scrapper_log_id', 'post_source_date', 'author', 'ai_tags', 'total_activity', 'title', 'description', 'scrapper_log_id'
         )
 
     def create(self, validated_data):
