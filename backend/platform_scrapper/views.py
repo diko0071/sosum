@@ -249,6 +249,9 @@ def scrap_linkedin_posts(request):
     for post in posts:
         relative_time_str = post.get('actor', {}).get('subDescription', {}).get('text', '')
         post_date = convert_linkedin_relative_datetime_to_date(relative_time_str.split('•')[0].strip())
+
+        if post_date is None:
+            continue
         
         if requested_date and post_date != requested_date.strftime('%Y-%m-%d'):
             continue

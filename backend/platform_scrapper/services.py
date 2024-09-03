@@ -23,4 +23,4 @@ def convert_linkedin_relative_datetime_to_date(timestamp):
     except ValueError:
         pass
 
-    return ''
+    return None
