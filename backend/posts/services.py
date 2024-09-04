@@ -1,10 +1,10 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.callbacks import get_openai_callback
-from .serializers import PromptLogSerializer
 import os
 
 def openai_call(system_message, user_message):
+    from .serializers import PromptLogSerializer
     llm = ChatOpenAI(model_name="gpt-4-0613", temperature=0, api_key=os.getenv("OPENAI_API_KEY"))
 
     messages = [
