@@ -16,6 +16,15 @@ class PlatformCategory(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class AuthorProfile(models.Model):
+    name = models.CharField(max_length=255)
+    username = models.CharField(max_length=255, blank=True, null=True)
+    profile_url = models.URLField(max_length=2000, blank=True, null=True)
+    profile_avatar = models.URLField(max_length=2000, blank=True, null=True)
+    platform = models.CharField(max_length=255, choices=PlatformName.choices, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 class ScrapperLog(models.Model):
     scrap_date = models.DateField()
     scrapper_name = models.CharField(max_length=255)

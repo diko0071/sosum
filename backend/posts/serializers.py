@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PostContent, PromptLog, PostSocial
+from .models import PostContent, PromptLog, PostSocial, AuthorProfile
 from .services import openai_call
 from .prompts import tag_post_prompt
     
@@ -20,6 +20,7 @@ class PostContentSerializer(serializers.ModelSerializer):
     
 class PostSocialSerializer(serializers.ModelSerializer):
     scrapper_log_id = serializers.IntegerField(write_only=True, required=False)
+    author = serializers.PrimaryKeyRelatedField(queryset=AuthorProfile.objects.all())
 
     class Meta:
         model = PostSocial
@@ -33,15 +34,15 @@ class PostSocialSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        
         existing_post = PostSocial.objects.filter(post_source_id=validated_data['post_source_id']).first()
         if existing_post:
             return existing_post
         
-        content = f"Title: {validated_data.get('title', '')}\nDescription: {validated_data.get('description', '')}"
-        system_message = tag_post_prompt
-        tags = openai_call(system_message, content)
-        validated_data['ai_tags'] = [tag.strip() for tag in tags.split(',')]
+        if 'ai_tags' not in validated_data:
+            content = f"Title: {validated_data.get('title', '')}\nDescription: {validated_data.get('description', '')}"
+            system_message = tag_post_prompt
+            tags = openai_call(system_message, content)
+            validated_data['ai_tags'] = [tag.strip() for tag in tags.split(',') if tag.strip()]
         
         instance = PostSocial.objects.create(**validated_data)
         

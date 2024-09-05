@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from .scrappers.producthunt_scrapper import ProductHuntScraper
 from datetime import datetime
 from .models import ScrapperLog
-from .serializers import ScrapperLogSerializer, PlatformCategorySerializer
+from .serializers import ScrapperLogSerializer, PlatformCategorySerializer, AuthorProfileSerializer
 from posts.serializers import PostContentSerializer, PostSocialSerializer
 from .scrappers.twitter_scrapper import TwitterScrapper
 import json
@@ -205,6 +205,21 @@ def scrap_twitter_posts(request):
         stats = tweet['stats']
         total_activity = sum(stats.values())
 
+
+        author_data = {
+            "name": tweet['user']['name'],
+            "username": tweet['user']['username'],
+            "profile_url": f"https://twitter.com/{tweet['user']['username'].lstrip('@')}",
+            "profile_avatar": tweet['user']['avatar'],
+            "platform": "twitter"
+        }
+        author_serializer = AuthorProfileSerializer(data=author_data)
+
+        if author_serializer.is_valid():
+            author = author_serializer.save()
+        else:
+            return Response(author_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         formatted_tweet = {
             "post_source_url": tweet['link'],
             "post_source_id": post_source_id,
@@ -214,12 +229,7 @@ def scrap_twitter_posts(request):
             "platform": "twitter",
             "total_activity": total_activity,
             "ai_tags": "",
-            "author": json.dumps({
-                "name": tweet['user']['name'],
-                "username": tweet['user']['username'],
-                "profile_url": f"https://twitter.com/{tweet['user']['username'].lstrip('@')}",
-                "profile_avatar": tweet['user']['avatar']
-            })
+            "author": author.id
         }
         formatted_tweets.append(formatted_tweet)
 
@@ -302,7 +312,21 @@ def scrap_linkedin_posts(request):
         author_profile_url = f"https://www.linkedin.com/in/{author_username}"
         author_profile_avatar = mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('rootUrl', '') + \
                                 mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('artifacts', [{}])[-1].get('fileIdentifyingUrlPathSegment', '')
- 
+
+        author_data = {
+            "name": author_name,
+            "username": author_username,
+            "profile_url": author_profile_url,
+            "profile_avatar": author_profile_avatar,
+            "platform": "linkedin"
+        }
+        author_serializer = AuthorProfileSerializer(data=author_data)
+
+        if author_serializer.is_valid():
+            author = author_serializer.save()
+        else:
+            return Response(author_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         formatted_post = {
             "post_source_url": post.get('socialContent', {}).get('shareUrl', ''),
             "post_source_id": post.get('updateMetadata', {}).get('urn', ''),
@@ -312,12 +336,7 @@ def scrap_linkedin_posts(request):
             "platform": "linkedin",
             "total_activity": combined_activity,
             "ai_tags": "",
-            "author": json.dumps({
-                "name": author_name,
-                "username": author_username,
-                "profile_url": author_profile_url,
-                "profile_avatar": author_profile_avatar
-            })
+            "author": author.id
         }
         formatted_posts.append(formatted_post)
 
@@ -355,7 +374,7 @@ def scrap_bioarxiv_papers(request):
 
     date = request.data.get('date')
     category = request.data.get('category')
-    max_results = request.data.get('max_results')
+    max_results = request.data.get('max_results', 100)
 
     start_date = date
     end_date = date
@@ -414,7 +433,7 @@ def scrap_bioarxiv_papers(request):
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(formatted_papers, status=status.HTTP_200_OK)
+    return Response(papers, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

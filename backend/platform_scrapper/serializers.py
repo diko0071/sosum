@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ScrapperLog, PlatformCategory
+from .models import ScrapperLog, PlatformCategory, AuthorProfile
 
 class ScrapperLogSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,3 +20,16 @@ class PlatformCategorySerializer(serializers.ModelSerializer):
         if existing_category:
             return existing_category
         return super().create(validated_data)
+    
+class AuthorProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuthorProfile
+        fields = ('name', 'username', 'profile_url', 'profile_avatar')
+
+    def create(self, validated_data):
+        username = validated_data.get('username')
+        author, created = AuthorProfile.objects.update_or_create(
+            username=username,
+            defaults=validated_data
+        )
+        return author
