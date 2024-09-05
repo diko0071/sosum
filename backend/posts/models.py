@@ -9,6 +9,7 @@ class PostContent(models.Model):
     description = models.TextField(null=True, blank=True)
     post_source_url = models.URLField(max_length=2000, blank=True, null=True)
     post_source_id = models.CharField(max_length=2000, blank=True, null=True)
+    author = models.CharField(max_length=255, blank=True, null=True)
     post_source_date = models.DateField(blank=True, null=True)
     platform = models.CharField(max_length=255, choices=PlatformName.choices, blank=True, null=True)
     tags = models.CharField(max_length=255, blank=True, null=True)
@@ -29,7 +30,7 @@ class PostSocial(models.Model):
     platform = models.CharField(max_length=255, choices=PlatformName.choices, blank=True, null=True)
     total_activity = models.PositiveIntegerField(blank=True, null=True)
     
-    author = models.JSONField(blank=True, null=True)
+    author = models.ForeignKey(AuthorProfile, on_delete=models.CASCADE, blank=True, null=True)
 
     scrapper_log = models.ForeignKey(ScrapperLog, on_delete=models.CASCADE, blank=True, null=True)
 
@@ -42,7 +43,9 @@ class PostSocial(models.Model):
 class PostSocialSummary(models.Model):
     title = models.CharField(max_length=2000)
     related_posts = models.JSONField(blank=True, null=True)
-    author = models.JSONField(blank=True, null=True)
+
+    author = models.ForeignKey(AuthorProfile, on_delete=models.CASCADE, blank=True, null=True)
+    
     post_source_date = models.DateField(blank=True, null=True)
     platform = models.CharField(max_length=255, choices=PlatformName.choices, blank=True, null=True)
 

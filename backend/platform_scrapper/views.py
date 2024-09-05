@@ -10,7 +10,7 @@ from .scrappers.producthunt_scrapper import ProductHuntScraper
 from datetime import datetime
 from .models import ScrapperLog
 from .serializers import ScrapperLogSerializer, PlatformCategorySerializer, AuthorProfileSerializer
-from posts.serializers import PostContentSerializer, PostSocialSerializer
+from posts.serializers import PostContentSerializer, PostSocialSerializer, PostSocialSummarySerializer
 from .scrappers.twitter_scrapper import TwitterScrapper
 import json
 from dotenv import load_dotenv
@@ -247,13 +247,43 @@ def scrap_twitter_posts(request):
     if log_serializer.is_valid():
         scrapper_log = log_serializer.save()
 
+        saved_posts = []
+
         for formatted_tweet in formatted_tweets:
             formatted_tweet['scrapper_log_id'] = scrapper_log.id
             post_serializer = PostSocialSerializer(data=formatted_tweet)
             if post_serializer.is_valid():
                 post_serializer.save()
+                saved_posts.append(post_serializer.data)
             else:
                 return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(log_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    if saved_posts: 
+        summary_data = {
+            'title': f"Summary of twitter posts for {username}",
+            'related_posts': [
+                {
+                    'id': post['post_source_id'],
+                    'title': post['title'],
+                    'text': post['description'],
+                    'url': post['post_source_url'],
+                    'date': post['post_source_date'],
+                    'tags': post['ai_tags']
+                } for post in saved_posts
+            ],
+            'author': saved_posts[0]['author'],
+            'post_source_date': saved_posts[0]['post_source_date'],
+            'platform': 'twitter',
+            'posts_ai_summary': '',
+            'posts_ai_tags': ''
+        }
+        summary_serializer = PostSocialSummarySerializer(data=summary_data)
+        if summary_serializer.is_valid():
+            summary_serializer.save()
+        else:
+            return Response(summary_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response(log_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -314,8 +344,8 @@ def scrap_linkedin_posts(request):
                                 mini_profile.get('picture', {}).get('com.linkedin.common.VectorImage', {}).get('artifacts', [{}])[-1].get('fileIdentifyingUrlPathSegment', '')
 
         author_data = {
-            "name": author_name,
-            "username": author_username,
+            "name": author_name if author_name else "No Name",
+            "username": author_username if author_username else "No Username",
             "profile_url": author_profile_url,
             "profile_avatar": author_profile_avatar,
             "platform": "linkedin"
@@ -354,15 +384,45 @@ def scrap_linkedin_posts(request):
     if log_serializer.is_valid():
         scrapper_log = log_serializer.save()
 
+        saved_posts = []
+
         for formatted_post in formatted_posts:
             formatted_post['scrapper_log_id'] = scrapper_log.id
             post_serializer = PostSocialSerializer(data=formatted_post)
             if post_serializer.is_valid():
                 post_serializer.save()
+                saved_posts.append(post_serializer.data)
             else:
                 return Response(post_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     else:
         return Response(log_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if saved_posts:
+        summary_data = {
+            'title': f"Summary of LinkedIn posts for {username}",
+            'related_posts': [
+                {
+                    'id': post['post_source_id'],
+                    'title': post['title'],
+                    'text': post['description'],
+                    'url': post['post_source_url'],
+                    'date': post['post_source_date'],
+                    'tags': post['ai_tags']
+                } for post in saved_posts
+            ],
+            'author': saved_posts[0]['author'],
+            'post_source_date': saved_posts[0]['post_source_date'],
+            'platform': 'linkedin',
+            'posts_ai_summary': '',
+            'posts_ai_tags': ''
+        }
+        summary_serializer = PostSocialSummarySerializer(data=summary_data)
+        if summary_serializer.is_valid():
+            summary_serializer.save()
+        else:
+            return Response(summary_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({"message": "No posts were saved."}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(formatted_posts, status=status.HTTP_200_OK)
 

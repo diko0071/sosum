@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PostContent, PromptLog, PostSocial, AuthorProfile
+from .models import PostContent, PromptLog, PostSocial, AuthorProfile, PostSocialSummary
 from .services import openai_call
 from .prompts import tag_post_prompt
     
@@ -38,14 +38,13 @@ class PostSocialSerializer(serializers.ModelSerializer):
         if existing_post:
             return existing_post
         
-        if 'ai_tags' not in validated_data:
-            content = f"Title: {validated_data.get('title', '')}\nDescription: {validated_data.get('description', '')}"
-            system_message = tag_post_prompt
-            tags = openai_call(system_message, content)
-            validated_data['ai_tags'] = [tag.strip() for tag in tags.split(',') if tag.strip()]
-        
+        content = f"Title: {validated_data.get('title', '')}\nDescription: {validated_data.get('description', '')}"
+        system_message = tag_post_prompt
+        tags = openai_call(system_message, content)
+        validated_data['ai_tags'] = [tag.strip() for tag in tags.split(',')]
+
         instance = PostSocial.objects.create(**validated_data)
-        
+
         return instance
 
 class PromptLogSerializer(serializers.ModelSerializer):
@@ -53,4 +52,11 @@ class PromptLogSerializer(serializers.ModelSerializer):
         model = PromptLog
         fields = (
             'system_message', 'user_message', 'response', 'cost', 'input_tokens', 'output_tokens'
+        )
+
+class PostSocialSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PostSocialSummary
+        fields = (
+            'title', 'related_posts', 'author', 'post_source_date', 'platform', 'posts_ai_summary', 'posts_ai_tags'
         )

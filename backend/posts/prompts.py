@@ -36,4 +36,6 @@ Output format:
 
 
 Each post can only have maximum 3 tags. NOT MORE. ONLY 3 TAGS.
+
+NEVER write Output: Category. Write only tags ONLY with comma separator.
 """

@@ -24,7 +24,7 @@ class PlatformCategorySerializer(serializers.ModelSerializer):
 class AuthorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuthorProfile
-        fields = ('name', 'username', 'profile_url', 'profile_avatar')
+        fields = ('name', 'username', 'profile_url', 'profile_avatar', 'platform')
 
     def create(self, validated_data):
         username = validated_data.get('username')

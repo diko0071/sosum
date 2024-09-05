@@ -17,7 +17,7 @@ class PlatformCategory(models.Model):
 
 
 class AuthorProfile(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, blank=True, null=True)
     username = models.CharField(max_length=255, blank=True, null=True)
     profile_url = models.URLField(max_length=2000, blank=True, null=True)
     profile_avatar = models.URLField(max_length=2000, blank=True, null=True)
