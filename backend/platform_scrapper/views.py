@@ -59,10 +59,7 @@ def scrap_arxiv_papers(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'ArxivScraper',
-        'platform': 'arxiv',
-        'scrapper_category': category or '',
-        'keyword': '',
-        'max_results': max_results or 0,
+        'platform': 'arxiv'
     }
 
     serializer = ScrapperLogSerializer(data=log_data)
@@ -133,10 +130,7 @@ def scrap_producthunt_posts(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'ProductHuntScraper',
-        'platform': 'producthunt',
-        'scrapper_category': '',
-        'keyword':  '',
-        'max_results': max_results,
+        'platform': 'producthunt'
     }
     
     serializer = ScrapperLogSerializer(data=log_data)
@@ -236,10 +230,7 @@ def scrap_twitter_posts(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'TwitterScraper',
-        'platform': 'twitter',
-        'scrapper_category': '',
-        'keyword': '',
-        'max_results': max_results,
+        'platform': 'twitter'
     }
 
     log_serializer = ScrapperLogSerializer(data=log_data)
@@ -373,10 +364,7 @@ def scrap_linkedin_posts(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'LinkedinScraper',
-        'platform': 'linkedin',
-        'scrapper_category': '',
-        'keyword': '',
-        'max_results': max_results,
+        'platform': 'linkedin'
     }
 
     log_serializer = ScrapperLogSerializer(data=log_data)
@@ -472,10 +460,7 @@ def scrap_bioarxiv_papers(request):
     log_data = {
         'scrap_date': datetime.now().date(),
         'scrapper_name': 'BioarxivScraper',
-        'platform': 'bioarxiv',
-        'scrapper_category': '',
-        'keyword': '',
-        'max_results': max_results
+        'platform': 'bioarxiv'
     }
 
     serializer = ScrapperLogSerializer(data=log_data)

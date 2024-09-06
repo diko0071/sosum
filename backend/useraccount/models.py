@@ -36,10 +36,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
 
-    following_list = models.JSONField(default=dict)
-
-    is_twitter_connected = models.BooleanField(default=False)
-    is_linkedin_connected = models.BooleanField(default=False)
+    user_preferences = models.JSONField(default=dict)
 
     date_joined = models.DateTimeField(auto_now=True)
     last_login = models.DateTimeField(blank=True, null=True)

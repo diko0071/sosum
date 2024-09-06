@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import PostContent, PromptLog, PostSocial, AuthorProfile, PostSocialSummary
 from .services import openai_call
-from .prompts import tag_post_prompt
+from .prompts import tag_post_prompt, summary_posts_prompt
     
 class PostContentSerializer(serializers.ModelSerializer):
     scrapper_log_id = serializers.IntegerField(write_only=True)
@@ -60,3 +60,14 @@ class PostSocialSummarySerializer(serializers.ModelSerializer):
         fields = (
             'title', 'related_posts', 'author', 'post_source_date', 'platform', 'posts_ai_summary', 'posts_ai_tags'
         )
+
+    def create(self, validated_data):
+        related_posts = validated_data.get('related_posts')
+        content = f"Posts for summary: {related_posts}"
+        system_message = summary_posts_prompt
+        summary = openai_call(system_message, content)
+        validated_data['posts_ai_summary'] = summary
+
+        instance = PostSocialSummary.objects.create(**validated_data)
+
+        return instance
